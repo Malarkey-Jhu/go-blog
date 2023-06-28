@@ -91,7 +91,7 @@ func run() error {
 
 	// 注册 404 Handler.
 	g.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
+		// c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
 		core.WriteResponse(c, errno.ErrPageNotFound, nil)
 	})
 
