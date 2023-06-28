@@ -16,6 +16,8 @@ import (
 
 	"github.com/Malarkey-Jhu/miniblog/internal/pkg/log"
 	mw "github.com/Malarkey-Jhu/miniblog/internal/pkg/middleware"
+	"github.com/Malarkey-Jhu/miniblog/pkg/core"
+	"github.com/Malarkey-Jhu/miniblog/pkg/errno"
 	"github.com/Malarkey-Jhu/miniblog/pkg/version/verflag"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -90,12 +92,14 @@ func run() error {
 	// 注册 404 Handler.
 	g.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
+		core.WriteResponse(c, errno.ErrPageNotFound, nil)
 	})
 
 	// 注册 /healthz handler.
 	g.GET("/healthz", func(c *gin.Context) {
 		log.C(c).Infow("healthz function called")
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+
+		core.WriteResponse(c, nil, map[string]string{"status": "ok"})
 	})
 
 	// 创建 HTTP Server 实例
