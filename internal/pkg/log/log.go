@@ -5,9 +5,11 @@
 package log
 
 import (
+	"context"
 	"sync"
 	"time"
 
+	"github.com/Malarkey-Jhu/miniblog/internal/pkg/known"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -109,7 +111,7 @@ func NewLogger(opts *Options) *zapLogger {
 }
 
 // Sync 调用底层 zap.Logger 的 Sync 方法，将缓存中的日志刷新到磁盘文件中. 主程序需要在退出前调用 Sync.
-func Sync() { std.Sync() }
+func Sync() { std.z.Sync() }
 
 func (l *zapLogger) Sync() {
 	_ = l.z.Sync()
@@ -167,4 +169,23 @@ func Fatalw(msg string, keysAndValues ...interface{}) {
 
 func (l *zapLogger) Fatalw(msg string, keysAndValues ...interface{}) {
 	l.z.Sugar().Fatalw(msg, keysAndValues...)
+}
+
+func C(ctx context.Context) *zapLogger {
+	return std.C(ctx)
+}
+
+func (l *zapLogger) C(ctx context.Context) *zapLogger {
+	lc := l.clone()
+
+	if requestID := ctx.Value(known.XRequestIDKey); requestID != nil {
+		lc.z = lc.z.With(zap.Any(known.XRequestIDKey, requestID))
+	}
+
+	return lc
+}
+
+func (l *zapLogger) clone() *zapLogger {
+	lc := *l
+	return &lc
 }

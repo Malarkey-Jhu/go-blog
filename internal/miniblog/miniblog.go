@@ -5,11 +5,21 @@
 package miniblog
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Malarkey-Jhu/miniblog/internal/pkg/log"
+	mw "github.com/Malarkey-Jhu/miniblog/internal/pkg/middleware"
 	"github.com/Malarkey-Jhu/miniblog/pkg/version/verflag"
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -69,29 +79,54 @@ Find more miniblog information at:
 // run 函数是实际的业务代码入口函数.
 func run() error {
 
-	// gin.SetMode(viper.GetString("runmode"))
+	gin.SetMode(viper.GetString("runmode"))
 
-	// g := gin.New()
+	g := gin.New()
 
-	// // 注册 404 Handler.
-	// g.NoRoute(func(c *gin.Context) {
-	// 	c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
-	// })
+	mws := []gin.HandlerFunc{gin.Recovery(), mw.NoCahe, mw.Cors, mw.Secure, mw.RequestID()}
 
-	// // 注册 /healthz handler.
-	// g.GET("/healthz", func(c *gin.Context) {
-	// 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	// })
+	g.Use(mws...)
 
-	// // 创建 HTTP Server 实例
-	// httpsrv := &http.Server{Addr: viper.GetString("addr"), Handler: g}
+	// 注册 404 Handler.
+	g.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"code": 10003, "message": "Page not found."})
+	})
+
+	// 注册 /healthz handler.
+	g.GET("/healthz", func(c *gin.Context) {
+		log.C(c).Infow("healthz function called")
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// 创建 HTTP Server 实例
+	httpsrv := &http.Server{Addr: viper.GetString("addr"), Handler: g}
 
 	// // 运行 HTTP 服务器
 	// // 打印一条日志，用来提示 HTTP 服务已经起来，方便排障
-	// log.Infow("Start to listening the incoming requests on http address", "addr", viper.GetString("addr"))
-	// if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-	// 	log.Fatalw(err.Error())
-	// }
+	log.Infow("Start to listening the incoming requests on http address", "addr", viper.GetString("addr"))
+	go func() {
+		if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalw(err.Error())
+		}
+	}()
+
+	// // 等待中断信号以优雅地关闭服务器（设置 10 秒的超时时间）
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM) // 此处不会阻塞
+	<-quit                                               // 阻塞在此，当接收到上述两种信号时才会往下执行
+	log.Infow("Shutting down server ...")
+
+	// 创建 ctx 用于通知服务器 goroutine, 它有 10 秒时间完成当前正在处理的请求
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 10 秒内优雅关闭服务（将未处理完的请求处理完再关闭服务），超过 10 秒就超时退出
+	if err := httpsrv.Shutdown(ctx); err != nil {
+		log.Fatalw("Server forced to shutdown:", err)
+		return err
+	}
+
+	log.Infow("Server exiting")
 
 	// // 打印所有的配置项及其值
 	// settings, _ := json.Marshal(viper.AllSettings())
