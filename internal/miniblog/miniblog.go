@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Malarkey-Jhu/miniblog/internal/pkg/core"
+	"github.com/Malarkey-Jhu/miniblog/internal/pkg/errno"
 	"github.com/Malarkey-Jhu/miniblog/internal/pkg/log"
 	mw "github.com/Malarkey-Jhu/miniblog/internal/pkg/middleware"
-	"github.com/Malarkey-Jhu/miniblog/pkg/core"
-	"github.com/Malarkey-Jhu/miniblog/pkg/errno"
 	"github.com/Malarkey-Jhu/miniblog/pkg/version/verflag"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -80,6 +80,11 @@ Find more miniblog information at:
 
 // run 函数是实际的业务代码入口函数.
 func run() error {
+
+	// 初始化 store 层
+	if err := initStore(); err != nil {
+		return err
+	}
 
 	gin.SetMode(viper.GetString("runmode"))
 

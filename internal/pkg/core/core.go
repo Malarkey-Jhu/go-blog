@@ -7,7 +7,7 @@ package core
 import (
 	"net/http"
 
-	"github.com/Malarkey-Jhu/miniblog/pkg/errno"
+	"github.com/Malarkey-Jhu/miniblog/internal/pkg/errno"
 	"github.com/gin-gonic/gin"
 )
 

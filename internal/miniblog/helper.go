@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Malarkey-Jhu/miniblog/internal/miniblog/store"
 	"github.com/Malarkey-Jhu/miniblog/internal/pkg/log"
+	"github.com/Malarkey-Jhu/miniblog/pkg/db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -75,4 +77,26 @@ func logOptions() *log.Options {
 		Format:            viper.GetString("log.format"),
 		OutputPaths:       viper.GetStringSlice("log.output-paths"),
 	}
+}
+
+func initStore() error {
+	dbOptions := &db.MySQLOptions{
+		Host:                  viper.GetString("db.host"),
+		Username:              viper.GetString("db.username"),
+		Password:              viper.GetString("db.password"),
+		Database:              viper.GetString("db.database"),
+		MaxIdleConnections:    viper.GetInt("db.max-idle-connections"),
+		MaxOpenConnections:    viper.GetInt("db.max-open-connections"),
+		MaxConnectionLifeTime: viper.GetDuration("db.max-connection-life-time"),
+		LogLevel:              viper.GetInt("db.log-level"),
+	}
+
+	ins, err := db.NewMySQL(dbOptions)
+	if err != nil {
+		return err
+	}
+
+	_ = store.NewStore(ins)
+
+	return nil
 }
